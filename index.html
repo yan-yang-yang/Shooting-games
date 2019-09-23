@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+
+    <style>
+        body {
+            min-height: 100%;
+            max-width: 100%;
+            background: #111;
+            font-family: Lato, sans-serif;
+        }
+        canvas{
+            border: 1px solid pink;
+            position: relative;
+
+        }
+        .div{
+            width: 100%;
+            height: 50px;
+            text-align: center;
+            font-size: 40px;
+        }
+        .div span:nth-child(1) {
+            color: #bf8040;
+        }
+        .div span:nth-child(2) {
+            color: #bfbf40;
+        }
+        .div span:nth-child(3) {
+            color: #80bf40;
+        }
+        .div span:nth-child(4) {
+            color: #40bf40;
+        }
+        .div span:nth-child(5) {
+            color: #40bf80;
+        }
+        .div span:nth-child(6) {
+            color: #40bfbf;
+        }
+        .div span:nth-child(7) {
+            color: #4080bf;
+        }
+        .div span:nth-child(8) {
+            color: #4040bf;
+        }
+        .div span:nth-child(9) {
+            color: #8040bf;
+        }
+        .div span:nth-child(10) {
+            color: #bf40bf;
+        }
+        .div span:nth-child(11) {
+            color: #bf4080;
+        }
+        p{
+            margin: 5px 0;
+            font-size: 20px;
+            line-height: 1.5em;
+            text-align: center;
+        }
+        .p span{
+            color: white;
+        }
+        #score{
+            position: fixed;
+            left: 650px;
+            top: 110px;
+            color: white;
+            font-size: 25px;
+            font-family: sans-serif;
+        }
+        #span{
+            color: #bf4080;
+        }
+        #life{
+            position: fixed;
+            left: 650px;
+            top: 160px;
+            color: white;
+            font-size: 25px;
+            font-family: sans-serif;
+        }
+        #spanlife{
+            color: #8040bf;
+        }
+        #start{
+            border: 1px solid pink;
+            position: relative;
+            margin-top:5%;
+            left: 30%;
+            width: 800px;
+            height: 800px;
+        }
+    </style>
+</head>
+<body onload="onload()">
+<div id="start">
+<canvas id="cvs" width="800" height="800"></canvas><div id="score">score:&nbsp<span id="span">0</span></div>
+    <div id="life">life:&nbsp<span id="spanlife">3</span></div>
+<div class="div"><span>C</span><span>o</span><span>l</span><span>o</span><span>r</span><span> </span><span>B</span><span>l</span><span>a</span><span>s</span><span>t</span></div>
+<p class="p"><span>使用 小键盘"左" 和 "右" 箭头, "空格键" 发射子弹,'点击屏幕’重新开始游戏.</span></p>
+</div>
+<script>
+    var cvs = document.getElementById('cvs');
+    var ctx = cvs.getContext('2d');
+    var score=document.getElementById('span');
+    var life=document.getElementById('spanlife');
+    function onload() {
+        gGame=new Game();
+        gGame.render();
+        gGame.update();
+    }
+    var gGame =null;
+    //主逻辑
+    function Game() {
+        var _this = this;
+        this.frame = 0;
+        this.lastFrame = 0;
+        this.CDcode = 20;
+        this.frame1 = 0;
+        this.lastFrame1 = 0;
+        this.CDcode1 = 70;
+        this.bar = null;
+        this.bullets = [];
+        this.drient = null;
+        this.drientbullet = [];
+        this.maxlife = 10;//生命值
+        this.score = 0;//得分
+        this.drientdraw = [];
+        this.flag = true;
+        this.render = function () {
+            _this.bar = new Bar();
+            _this.drient = new Dirent();
+
+            cvs.onclick = function () {
+                location.reload();
+            }
+
+        };
+        this.update = function () {
+            _this.frame++;
+            _this.frame1++;
+            //画目标
+            ctx.clearRect(0, 0, cvs.width, cvs.height);
+            ctx.beginPath();
+            _this.bar.update();
+            _this.bar.draw();
+            if (_this.flag) {
+                _this.drientdraw.push(_this.drient);
+                _this.flag = false;
+            }
+
+            _this.drientdraw.forEach(function (val) {
+                val.draw();
+                val.draw1();
+                val.draw2();
+                val.updatePos();
+
+            });
+            //炮弹发射
+            document.onkeydown = function (e) {
+                if (e.keyCode == 32) {
+                    if (_this.frame >= _this.lastFrame + _this.CDcode) {
+                        _this.bullets.push(new Bullet(_this.bar.positionX));
+                        _this.lastFrame = _this.frame;
+                    }
+                }
+                if (e.keyCode == 37) {
+                    _this.bar.positionX -= 20
+                }
+                if (e.keyCode == 39) {
+                    _this.bar.positionX += 20
+                }
+            };
+            _this.bullets.forEach(function (val, index) {
+                val.draw();
+                val.updatePos();
+                val.updateStatus();
+                if (val.dead) {
+                    _this.bullets.splice(index, 1);
+                }
+            });
+
+            //敌人子弹发射
+            if (_this.frame1 >= _this.lastFrame1 + _this.CDcode1) {
+                _this.drientbullet.push(new DirentBullet(_this.drient.positionX, _this.drient.positionX1, _this.drient.positionX2));
+                _this.lastFrame1 = _this.frame1;
+            }
+            _this.drientbullet.forEach(function (val) {
+                val.draw();
+                val.updatePos();
+                val.updateStatus();
+            });
+
+            //目标子弹状态
+            _this.bullets.forEach(function (val) {
+                if (val.positionX > _this.drient.positionX - 20 && val.positionX < _this.drient.positionX + 80 && val.positionY < 80) {
+                    val.dead = true;
+                    _this.drient.dead = true;
+                    _this.score += 2;
+                }
+                if (val.positionX > _this.drient.positionX1 - 20 && val.positionX < _this.drient.positionX1 + 80 && val.positionY < 140) {
+                    val.dead = true;
+                    _this.drient.dead1 = true;
+                    _this.score += 1;
+                }
+                if (val.positionX > _this.drient.positionX2 - 20 && val.positionX < _this.drient.positionX2 + 80 && val.positionY < 200) {
+                    val.dead = true;
+                    _this.score-=2
+                }
+                score.innerHTML = _this.score;
+            });
+
+            //敌人子弹状态
+            _this.drientbullet.forEach(function (val) {
+                var x=val.positionX;
+                var x1=val.positionX1;
+                var x2=val.positionX2;
+                var x0=_this.bar.positionX;
+                var y0=_this.bar.positionY;
+                var y=val.positionY;
+                var y1=val.positionY1;
+                var y2=val.positionY2;
+                if ((!((x+20<x0)||(x0+80<x)||(y+30<y0)||(y0+20<y)))||(!((x1+20<x0)||(x0+80<x1)||(y1+30<y0)||(y0+20<y1)))||(!((x2+20<x0)||(x0+80<x2)||(y2+30<y0)||(y0+20<y2)))) {
+                    _this.maxlife-=1/2;
+                    life.innerHTML = parseInt(_this.maxlife);
+                }
+                if (_this.maxlife <= 0) {
+                    _this.maxlife = 0;
+                }
+            });
+            var frame = window.requestAnimationFrame(_this.update);
+            if (_this.maxlife <= 0||_this.score<=-15) {
+                var message = "Game Over";
+                var message2 = "Score: " + _this.score;
+                var message3 = "Click or press Spacebar to Play Again";
+                ctx.fillStyle = "white";
+                ctx.font = "bold 50px Lato, sans-serif";
+                ctx.fillText(message, cvs.width / 2 - ctx.measureText(message).width / 2, cvs.height / 2 - 50);
+                ctx.fillText(message2, cvs.width / 2 - ctx.measureText(message2).width / 2, cvs.height / 2 - 5);
+                ctx.font = "bold 16px Lato, sans-serif";
+                ctx.fillText(message3, cvs.width / 2 - ctx.measureText(message3).width / 2, cvs.height / 2 + 30);
+                cancelAnimationFrame(frame);
+            }
+            if(_this.score>15){
+                var message = "Game WIN";
+                var message2 = "Score: " + _this.score;
+                var message3 = "Click or press Spacebar to Play Again";
+                ctx.beginPath();
+                ctx.fillStyle = "red";
+                ctx.font = "bold 50px Lato, sans-serif";
+                ctx.fillText(message, cvs.width / 2 - ctx.measureText(message).width / 2, cvs.height / 2 - 50);
+                ctx.fillText(message2, cvs.width / 2 - ctx.measureText(message2).width / 2, cvs.height / 2 - 5);
+                ctx.font = "bold 16px Lato, sans-serif";
+                ctx.fillText(message3, cvs.width / 2 - ctx.measureText(message3).width / 2, cvs.height / 2 + 30);
+                cancelAnimationFrame(frame);
+            }
+        }
+    }
+
+    //目标
+    function Bar() {
+        var _this = this;
+        this.positionX=cvs.width/2;
+        this.positionY=cvs.height-20;
+        this.draw=function () {
+            ctx.beginPath();
+            ctx.fillStyle='blue';
+            ctx.fillRect(_this.positionX,_this.positionY,80,20);
+            ctx.fill();
+            ctx.stroke();
+        };
+        this.update=function(){
+            if(_this.positionX<0){
+                _this.positionX=0
+            }if(_this.positionX>cvs.width-80){
+                _this.positionX=cvs.width-80
+            }
+        };
+    }
+    //目标子弹
+    function Bullet(positionX) {
+        var _this=this;
+        this.positionX=positionX+40;
+        this.positionY=cvs.height-50;
+        this.v=2;
+        this.dead=false;
+        this.draw =function () {
+            ctx.beginPath();
+            ctx.fillStyle='red';
+            ctx.fillRect(_this.positionX,_this.positionY,20,30);
+            ctx.fill();
+            ctx.stroke();
+        };
+        this.updatePos=function () {
+            var dt =2;
+            _this.positionY-=_this.v*dt;
+        };
+        this.updateStatus=function () {
+            if(_this.positionX<0||_this.positionX>=cvs.width-20||_this.positionY<0||_this.positionY>=cvs.height){
+                _this.dead=true;
+            }
+                }
+    }
+    //敌人
+    function Dirent() {
+        var _this = this;
+        this.v=2;
+        this.v1=3;
+        this.v2=4;
+        this.positionX=100;
+        this.positionY=[60,120,180];
+        this.positionX1=250;
+        this.positionX2=400;
+        this.color=['blue','green','red'];
+        this.dead=false;
+        //第一个挡板
+        this.draw=function () {
+            ctx.beginPath();
+            ctx.fillStyle=_this.color[parseInt(Math.random()*3)];
+            ctx.fillRect(_this.positionX,_this.positionY[0],80,20);
+            ctx.fill();
+            ctx.stroke();
+        };
+        //第二个挡板
+        this.draw1=function () {
+            ctx.beginPath();
+            ctx.fillStyle=_this.color[parseInt(Math.random()*3)];
+            ctx.fillRect(_this.positionX1,_this.positionY[1],80,20);
+            ctx.stroke();
+        };
+        //第三个挡板
+        this.draw2=function () {
+            ctx.beginPath();
+            ctx.fillStyle=_this.color[parseInt(Math.random()*3)];
+            ctx.fillRect(_this.positionX2,_this.positionY[2],80,20);
+            ctx.fill();
+            ctx.stroke();
+        };
+        this.updatePos=function () {
+            var dt=1;
+            if(_this.positionX>cvs.width-80){
+                _this.v=-_this.v;
+            }else if(_this.positionX<0){
+                _this.v=-_this.v;
+            }_this.positionX+=_this.v*dt;
+            if(_this.positionX1>cvs.width-80){
+                _this.v1=-_this.v1;
+            }else if(_this.positionX1<0){
+                _this.v1=-_this.v1;
+            }_this.positionX1+=_this.v1*dt;
+            if(_this.positionX2>cvs.width-80){
+                _this.v2=-_this.v2;
+            }else if(_this.positionX2<0){
+                _this.v2=-_this.v2;
+            }_this.positionX2+=_this.v2*dt;
+        }
+    }
+    //敌人子弹
+    function DirentBullet(positionX,positionX1,positionX2) {
+        var _this=this;
+        this.positionX=positionX+40;
+        this.positionX1=positionX1+40;
+        this.positionY=0;
+        this.positionY1=0;
+        this.positionX2=positionX2+40;
+        this.positionY2=0;
+        this.dead=false;
+        this.angle=Math.PI*10/180;
+        this.v=10;
+        this.v1=10;
+        this.v2=10;
+        this.dt=0;
+        this.draw=function () {
+            //1
+            ctx.beginPath();
+            ctx.fillStyle='#912CEE';
+            ctx.fillRect(_this.positionX,_this.positionY+80,20,30);
+            ctx.fill();
+            ctx.stroke();
+            //2
+           ctx.beginPath();
+            ctx.fillStyle='#8B2323';
+            ctx.fillRect(_this.positionX1,_this.positionY1+140,20,30);
+            ctx.fill();
+            ctx.stroke();
+            //3
+            ctx.beginPath();
+            ctx.fillStyle='#8B2323';
+            ctx.fillRect(_this.positionX2,_this.positionY2+200,20,30);
+            ctx.fill();
+            ctx.stroke();
+        };
+        this.updatePos=function () {
+            _this.dt+=0.2;
+            var g=10;
+             _this.positionX=_this.v*_this.dt*Math.cos(_this.angle)+positionX+40;
+             _this.positionY=_this.v*_this.dt*Math.sin(_this.angle)+0.5*g*_this.dt*_this.dt;
+             _this.positionX1=_this.v1*_this.dt*Math.cos(_this.angle)+positionX1+40;
+             _this.positionY1=_this.v1*_this.dt*Math.sin(_this.angle)+0.5*g*_this.dt*_this.dt;
+             _this.positionX2=_this.v2*_this.dt*Math.cos(_this.angle)+positionX2+40;
+             _this.positionY2=_this.v2*_this.dt*Math.sin(_this.angle)+0.5*g*_this.dt*_this.dt;
+        };
+        this.updateStatus=function () {
+           /* if(_this.positionX<0||_this.positionX>=cvs.width-20||_this.positionY>=600){
+                 _this.dead=true;
+            }
+            if(_this.positionX1<0||_this.positionX1>=cvs.width-20||_this.positionY1>=600){
+                  _this.dead=true;
+              }
+            if(_this.positionX2<0||_this.positionX2>=cvs.width-20||_this.positionY2>=600){
+                  _this.dead=true;
+              }*/
+        }
+    }
+</script>
+<script></script>
+</body>
+</html>

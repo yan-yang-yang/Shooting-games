@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        canvas{
+            /*background-color: palegreen;*/
+            background-image: url("./bg1.png");
+            background-size: 100% 100%;
+
+        }
+        #score{
+            position: fixed;
+            left: 50px;
+            top: 20px;
+            color: white;
+            font-size: 30px;
+            font-family: sans-serif;
+        }
+        #img{
+            position: fixed;
+            left: 200px;
+            top: 250px;
+            width: 400px;
+            height: 150px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body onload="gameStart()">
+<canvas id="cvs" width="800" height="600" style="border: 1px solid black"></canvas>
+<div id="score">score:<span>0</span></div>
+<img src="./1.png" alt="" id="img">
+<div id="rules"></div>
+</body>
+<script>
+    var cvs = document.getElementById('cvs');
+    var ctx = cvs.getContext('2d');
+    var score = document.getElementById('score');
+    var span = score.getElementsByTagName('span')[0];
+    var gGame = null;
+    var img = document.getElementById('img');
+    var rules = document.getElementById('rules');
+    function gameStart() {
+        rules.innerHTML = '游戏规则： <br/> 打掉一个方块加一分,被子弹击中减十分。分数小于零，游戏结束';
+    }
+
+    img.onclick = function () {
+        img.style.zIndex = -1;
+        gGame = new Game();
+        gGame.render();
+        gGame.update();
+    };
+
+    function Game() {
+        var _this = this;
+        this.frame = 0;
+        this.lastFrame = 0;
+        this.CDCode = 10;
+
+        this.frame1 = 0;
+        this.lastFrame1 = 0;
+        this.CDCode1 = 60;
+
+        this.bar = null;
+        this.bulltes = [];
+        this.enemies = [];
+        this.bulltes2 = [];
+        this.score = 0;
+        this.v = 1;
+        this.color = ['green','red','yellow','hotpink'];
+        this.direction = [false,true];
+
+        this.i = 0;
+
+        this.obj = [
+            {
+                keycode:37,
+                status:false
+            },
+            {
+                keycode:39,
+                status:false
+            },
+            {
+                keycode:32,
+                status:false
+            }
+        ];
+
+        this.render = function () {
+            _this.bar = new Bar(_this.obj);
+        };
+        this.update = function () {
+            _this.frame++;
+            _this.frame1++;
+            ctx.clearRect(0,0,cvs.width,cvs.height);
+            _this.bar.draw();
+            _this.updateCreateBullet();
+            /*产生敌人*/
+            if (_this.frame1 >= _this.lastFrame1 + _this.CDCode1){
+                if (_this.enemies.length < 6)
+                {
+                    _this.bulltes2[_this.i] = [];
+                    _this.enemies.push(new Enemy(_this.direction[parseInt(Math.random()*2)],_this.color[parseInt(Math.random()*4)]));
+                    _this.bulltes2[_this.i].push(new Bullet1(_this.enemies[_this.enemies.length-1].positionX,_this.enemies[_this.enemies.length-1].positionY,_this.enemies[_this.enemies.length-1].color,_this.v));
+                    _this.i++;
+                }
+                _this.lastFrame1 = _this.frame1;
+            }
+            /*判断敌人状态--是否被子弹击中*/
+            _this.enemies.forEach(function (val) {
+                _this.bulltes.forEach(function (item) {
+
+                    if (item.positionX - val.positionX < 80 && item.positionX - val.positionX > -10 && item.positionY - val.positionY <= 20) {
+                        val.dead = true;
+                        item.dead = true;
+                        _this.score++;
+                        span.innerHTML = _this.score;
+                        _this.v += parseInt(_this.score / 50);
+                    }
+                })
+            });
+            /*画敌人
+            * 判断我是否被子弹击中*/
+            _this.enemies.forEach(function (val,index) {
+                _this.bulltes2[index].forEach(function (item) {
+
+                    item.draw();
+                    item.updatePos();
+                    item.updateStatus();
+                    if (item.positionX - _this.bar.positionX < 80 && item.positionX - _this.bar.positionX > -10 && _this.bar.positionY - item.positionY <= 20)
+                    {
+                        item.dead = true;
+                        _this.score -= 10;
+                        span.innerHTML = _this.score;
+
+                    }
+                    if (item.dead){
+                        _this.bulltes2[index].splice(_this.bulltes2[index].length -1,1);
+                        _this.bulltes2[index].push(new Bullet1(val.positionX,val.positionY,val.color,_this.v));
+                    }
+                });
+                val.draw();
+                val.updatePos();
+                val.updateDirection();
+
+                if (val.dead){
+                    _this.enemies.splice(index,1);
+                }
+            });
+            /*画子弹*/
+            _this.bulltes.forEach(function (val,index) {
+                val.draw();
+                val.updatePos();
+                val.updateStatus();
+                if (val.dead){
+                    _this.bulltes.splice(index,1);
+                }
+            });
+            if (_this.score < 0)
+            {
+                _this.gameOver();
+            }
+            else
+            {
+                window.requestAnimationFrame(_this.update);
+            }
+        };
+
+        this.updateCreateBullet = function () {
+            if ((_this.obj[0].status && _this.obj[2].status) || (_this.obj[1].status && _this.obj[2].status) || _this.obj[2].status)
+            {
+                if (_this.frame >= _this.lastFrame + _this.CDCode)
+                {
+                    _this.bulltes.push(new Bullet(_this.bar.positionX,_this.bar.positionY,_this.bar.color));
+                    _this.lastFrame = _this.frame;
+                }
+            }
+        };
+
+        this.gameOver = function () {
+            ctx.clearRect(0,0,cvs.width,cvs.height);
+            ctx.beginPath();
+            ctx.textAlign = "center";
+            ctx.font = 'bold 64px  sans-serif';
+            ctx.fillStyle = 'black';
+            ctx.fillText('GameOver',cvs.width / 2,cvs.height/2,300);
+            ctx.fill();
+            rules.innerHTML = '任意点击重新开始';
+            document.onclick = function () {
+                location.reload();
+            }
+        }
+    }
+
+    /*我方*/
+    function Bar(obj) {
+        var _this = this;
+        this.width = 80;
+        this.height = 20;
+        this.color = 'white';
+        this.positionX = cvs.width / 2 - _this.width / 2;
+        this.positionY = cvs.height - _this.height - 10;
+        this.draw = function () {
+            ctx.save();
+            ctx.beginPath();
+            ctx.fillStyle = _this.color;
+            ctx.fillRect(_this.positionX,_this.positionY,_this.width,_this.height);
+            ctx.restore();
+        };
+        this.update = function () {
+            ctx.clearRect(0,0,cvs.width,cvs.height);
+            _this.draw();
+            window.requestAnimationFrame(_this.update);
+        };
+        document.onkeydown = function (e) {
+            obj.forEach(function (val) {
+                if (val.keycode == e.keyCode)
+                {
+                    val.status = true;
+                }
+            });
+            if (obj[1].status)
+            {
+
+                if (_this.positionX >= cvs.width - _this.width)
+                {
+                    _this.positionX = cvs.width - _this.width;
+                }
+                else
+                {
+                    _this.positionX += 10;
+                }
+
+            }
+            if (obj[0].status)
+            {
+                if (_this.positionX <= 0 )
+                {
+                    _this.positionX = 0;
+                }
+                else
+                {
+                    _this.positionX -= 10;
+                }
+            }
+        };
+        document.onkeyup = function (e) {
+            obj.forEach(function (val) {
+                if (val.keycode == e.keyCode)
+                {
+                    val.status = false;
+                }
+            });
+        }
+    }
+    /*我方子弹*/
+    function Bullet(barPositionX,barPositionY,color) {
+        var _this = this;
+        this.positionX = barPositionX + 35;
+        this.positionY = barPositionY ;
+
+        this.dead = false;
+        this.draw = function () {
+            ctx.beginPath();
+            ctx.fillStyle = color;
+            ctx.fillRect(_this.positionX,_this.positionY,10,20);
+            ctx.fill();
+        };
+        this.updatePos = function () {
+            _this.positionY -= 5;
+        };
+        this.updateStatus = function () {
+            if (_this.positionY < 0 )
+            {
+                _this.dead = true;
+            }
+        }
+    }
+
+    /*敌方子弹*/
+    function Bullet1(barPositionX,barPositionY,color,v) {
+        var _this = this;
+        this.positionX = barPositionX + 35;
+        this.positionY = barPositionY ;
+        this.color = color;
+        this.dead = false;
+        this.draw = function () {
+            ctx.beginPath();
+            ctx.fillStyle = _this.color;
+            ctx.fillRect(_this.positionX,_this.positionY,10,20);
+            ctx.fill();
+        };
+        this.updatePos = function () {
+            _this.positionY = _this.positionY+(1 * v);
+
+
+        };
+        this.updateStatus = function () {
+            if (_this.positionY >= cvs.height - 20 )
+            {
+                _this.dead = true;
+            }
+        }
+    }
+    /*敌方*/
+    function Enemy(direction,color) {
+        var _this = this;
+        this.width = 80;
+        this.height = 20;
+        this.positionX = (cvs.width - _this.width) * Math.random();
+        this.positionY = 50 + 100 * Math.random();
+        this.dead = false;
+        this.color = color;
+
+        this.draw = function () {
+            ctx.save();
+            ctx.beginPath();
+            ctx.fillStyle = _this.color;
+            ctx.fillRect(_this.positionX,_this.positionY,_this.width,_this.height);
+            ctx.fill();
+            ctx.restore();
+        };
+        /*敌人移动*/
+        this.updatePos = function () {
+            if (direction)
+            {
+                _this.positionX ++ ;
+            }
+            else
+            {
+                _this.positionX --;
+            }
+        };
+        /*改变敌人方向*/
+        this.updateDirection = function () {
+            if (_this.positionX > cvs.width - _this.width || _this.positionX < 0)
+            {
+                direction = !direction;
+            }
+        };
+    }
+</script>
+</html>
